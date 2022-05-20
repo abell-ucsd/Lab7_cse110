@@ -1,15 +1,9 @@
 package com.example.lab7;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContract;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -20,27 +14,17 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.lab7.databinding.ActivityMapsBinding;
 
-import java.util.Arrays;
-
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
+    private final GenericPermissionChecker permissionChecker = new PermissionChecker(this);
     private GoogleMap map;
     private ActivityMapsBinding binding;
 
     private Location lastVisitedLocation;
-
-    private final ActivityResultLauncher<String[]> requestPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), perms -> {
-                perms.forEach((perm,isGranted) -> {
-                    Log.i("LAB7",String.format("Permission %s granted: %s", perm, isGranted));
-                });
-            });
 
 
     @Override
@@ -76,10 +60,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         var ucsdPosition = LatLngs.UCSD_LATLNG;
         var zooPosition = LatLngs.ZOO_LATLNG;
 
-        var cameraPosition = new LatLng(
-                (ucsdPosition.latitude + zooPosition.latitude) / 2,
-                (ucsdPosition.longitude + zooPosition.longitude) / 2
-        );
+        var cameraPosition = LatLngs.midpoint(ucsdPosition, zooPosition);
         map.addMarker(new MarkerOptions()
                 .position(ucsdPosition)
                 .title("UCSD"));
@@ -91,20 +72,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
         //permissions setup
-        {
-            var requiredPermissions = new String[]{
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-            };
-
-            var hasNoLocationPerms = Arrays.stream(requiredPermissions)
-                    .map(perm -> ContextCompat.checkSelfPermission(this,perm))
-                    .allMatch(status -> status == PackageManager.PERMISSION_DENIED);
-            if (hasNoLocationPerms){
-                requestPermissionLauncher.launch(requiredPermissions);
-                return;
-            }
-        }
+        if (permissionChecker.ensurePermissions()) return;
 
         //Listen for Location Updates
         {
@@ -130,4 +98,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
     }
+
+    private boolean ensurePermissions() {
+
+        return permissionChecker.ensurePermissions();
+    }
+
 }
